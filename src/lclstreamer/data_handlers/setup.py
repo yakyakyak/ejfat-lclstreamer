@@ -8,6 +8,11 @@ from .streaming.binary import (
     BinaryDataStreamingDataHandler as BinaryDataStreamingDataHandler,
 )
 
+try:
+    from .streaming.e2sar import E2SARDataHandler as E2SARDataHandler
+except ImportError:
+    pass
+
 # Note: It would be simpler to write these as functions
 # with the @contextlib.asynccontextmanager decorator.
 # I *think* they would still type-check OK.

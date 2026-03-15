@@ -65,11 +65,53 @@ class Psana2EventSourceParameters(_CustomBaseModel):
     type: Literal["Psana2EventSource"]
 
 
+class E2SAREventSourceParameters(_CustomBaseModel):
+    """
+    Configuration parameters for the E2SAR Event Source
+
+    This event source receives events via EJFAT transport using the E2SAR
+    library's Reassembler component
+
+    Attributes:
+
+        type: Discriminator field, must be ``"E2SAREventSource"``
+
+        ejfat_uri: EJFAT URI string (e.g., "ejfat://user@host:port/lb/1?sync=...&data=...").
+            If ``None``, reads from EJFAT_URI environment variable. Defaults to ``None``
+
+        listen_port: Base UDP port for receiving data. Each MPI rank uses
+            (base_port + rank). Defaults to ``10000``
+
+        num_recv_threads: Number of receive threads per rank. Defaults to ``4``
+
+        use_control_plane: Register with load balancer control plane.
+            Defaults to ``True``
+
+        with_lb_header: Expect load balancer header in packets (for back-to-back
+            testing without actual EJFAT hardware). Defaults to ``False``
+
+        event_timeout_ms: Reassembly timeout in milliseconds. Defaults to ``500``
+
+        deserializer_type: Type of deserializer to use for received data.
+            Must be "hdf5", "pickle", or "raw". Defaults to ``"hdf5"``
+    """
+
+    type: Literal["E2SAREventSource"]
+    ejfat_uri: str | None = None
+    listen_port: int = 10000
+    num_recv_threads: int = 4
+    use_control_plane: bool = True
+    with_lb_header: bool = False
+    event_timeout_ms: int = 500
+    deserializer_type: Literal["hdf5", "pickle", "raw"] = "hdf5"
+
+
 EventSourceParameters = Annotated[
     Union[
         InternalEventSourceParameters,
         Psana1EventSourceParameters,
         Psana2EventSourceParameters,
+        E2SAREventSourceParameters,
     ],
     Field(discriminator="type"),
 ]
@@ -307,9 +349,54 @@ class BinaryFileWritingDataHandlerParameters(_CustomBaseModel):
     write_directory: Path = Path.cwd()
 
 
+class E2SARDataHandlerParameters(_CustomBaseModel):
+    """
+    Configuration parameters for the E2SAR Data Handler
+
+    This data handler sends serialized byte objects via EJFAT transport using
+    the E2SAR library's Segmenter component
+
+    Attributes:
+
+        type: Discriminator field, must be ``"E2SARDataHandler"``
+
+        ejfat_uri: EJFAT URI string (e.g., "ejfat://user@host:port/lb/1?sync=...&data=...").
+            If ``None``, reads from EJFAT_URI environment variable. Defaults to ``None``
+
+        data_id: 16-bit data stream identifier. If ``None``, auto-derived from MPI rank.
+            Defaults to ``None``
+
+        eventsrc_id: 32-bit event source identifier. If ``None``, auto-derived from MPI rank.
+            Defaults to ``None``
+
+        use_control_plane: Enable control plane for sync packets and load balancer registration.
+            Defaults to ``True``
+
+        rate_gbps: Rate limit in Gbps. Set to -1.0 for unlimited. Defaults to ``-1.0``
+
+        mtu: Maximum transmission unit in bytes. Use 9000 for jumbo frames. Defaults to ``9000``
+
+        sync_period_ms: Sync packet interval in milliseconds. Defaults to ``1000``
+
+        num_send_sockets: Number of send sockets for LAG distribution. Defaults to ``4``
+    """
+
+    type: Literal["E2SARDataHandler"]
+    ejfat_uri: str | None = None
+    data_id: int | None = None
+    eventsrc_id: int | None = None
+    use_control_plane: bool = True
+    rate_gbps: float = -1.0
+    mtu: int = 9000
+    sync_period_ms: int = 1000
+    num_send_sockets: int = 4
+
+
 DataHandlerParameters = Annotated[
     Union[
-        BinaryDataStreamingDataHandlerParameters, BinaryFileWritingDataHandlerParameters
+        BinaryDataStreamingDataHandlerParameters,
+        BinaryFileWritingDataHandlerParameters,
+        E2SARDataHandlerParameters,
     ],
     Field(discriminator="type"),
 ]

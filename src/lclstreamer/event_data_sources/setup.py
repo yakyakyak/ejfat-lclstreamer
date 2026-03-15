@@ -17,6 +17,11 @@ try:
 except ImportError:
     pass
 
+try:
+    from .e2sar.event_sources import E2SAREventSource as E2SAREventSource
+except ImportError:
+    pass
+
 
 def initialize_event_source(
     parameters: Parameters,

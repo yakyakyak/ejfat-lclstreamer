@@ -1,0 +1,46 @@
+# E2SAR Back-to-Back Test Producer Configuration
+# This configuration is for testing without actual EJFAT hardware
+#
+# Usage:
+#   1. Start consumer first (see e2sar-back-to-back-consumer.yaml)
+#   2. Start producer: pixi run mpirun -n 2 lclstreamer --config examples/e2sar-back-to-back-producer.yaml
+
+source_identifier: ""
+skip_incomplete_events: false
+
+event_source:
+    type: InternalEventSource
+    number_of_events_to_generate: 50
+
+data_sources:
+    test_array:
+        type: GenericRandomNumpyArray
+        array_shape: 100,100
+        array_dtype: float32
+    event_id:
+        type: IntValue
+        value: 42
+
+processing_pipeline:
+    type: BatchProcessingPipeline
+    batch_size: 5
+
+data_serializer:
+    type: HDF5BinarySerializer
+    compression_level: 3
+    compression: null
+    fields:
+        test_array: /data/array
+        event_id: /data/event_id
+
+data_handlers:
+    - type: E2SARDataHandler
+      # Back-to-back URI: both sync and data point to localhost
+      ejfat_uri: "ejfat://test@127.0.0.1:9876/lb/1?sync=127.0.0.1:12345&data=127.0.0.1:10000"
+      data_id: null  # Auto-derive from rank
+      eventsrc_id: null  # Auto-derive from rank
+      use_control_plane: false  # No actual LB in back-to-back mode
+      rate_gbps: 1.0
+      mtu: 1500  # Standard MTU for localhost
+      sync_period_ms: 1000
+      num_send_sockets: 1

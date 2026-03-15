@@ -58,8 +58,8 @@ channels = ["lcls-ii"]
 lclstreamer = { path = ".", editable = true }
 
 [tool.pixi.environments]
-psana1 = ["psana1"]
-psana2 = ["psana2"]
+psana1 = { features = ["psana1"], solve-group = "linux" }
+psana2 = { features = ["psana2"], solve-group = "linux" }
 
 [tool.pixi.feature.psana1.activation]
 scripts = ["activation-psana1.sh"]
@@ -78,9 +78,13 @@ hdf5plugin = ">=5.1.0"
 python = "3.11.*"
 psana = "==4.0.66"
 
+[tool.pixi.feature.psana1.target.linux-64.dependencies]
+
 [tool.pixi.feature.psana2.dependencies]
 python = "3.13.*"
 psana = { version="==4.2.4", channel="lcls-ii" }
+
+[tool.pixi.feature.psana2.target.linux-64.dependencies]
 
 [dependency-groups]
 psana1 = [

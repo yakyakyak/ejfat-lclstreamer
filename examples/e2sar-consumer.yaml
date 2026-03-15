@@ -1,0 +1,47 @@
+# E2SAR Consumer Configuration
+# This configuration demonstrates receiving data via EJFAT using E2SAREventSource
+#
+# Usage with MPI (multiple ranks for parallel receiving):
+#   pixi run mpirun -n 4 lclstreamer --config examples/e2sar-consumer.yaml
+#
+# Environment variables:
+#   EJFAT_URI - EJFAT URI if not specified in event source parameters
+
+source_identifier: ""
+skip_incomplete_events: false
+
+event_source:
+    type: E2SAREventSource
+    # EJFAT URI - can also be set via EJFAT_URI environment variable
+    # Format: ejfat://user@host:port/lb/ID?sync=HOST:PORT&data=HOST
+    ejfat_uri: null  # Read from EJFAT_URI env var
+    listen_port: 10000  # Base port (rank N uses port 10000+N)
+    num_recv_threads: 4  # Receive threads per rank
+    use_control_plane: true  # Register with load balancer
+    with_lb_header: false  # Set true for back-to-back testing
+    event_timeout_ms: 500  # Reassembly timeout
+    deserializer_type: hdf5  # hdf5, pickle, or raw
+
+# Note: data_sources not used when E2SAREventSource provides events
+data_sources: {}
+
+processing_pipeline:
+    type: BatchProcessingPipeline
+    batch_size: 1  # Process events individually
+
+# Note: This is a sink configuration - data flows in from E2SAR
+# The serializer here would only be used if you're forwarding to another handler
+data_serializer:
+    type: HDF5BinarySerializer
+    compression_level: 3
+    compression: null
+    fields:
+        entry/data/image: /entry/data/image
+        entry/instrument/detector/timestamp: /entry/instrument/detector/timestamp
+
+data_handlers:
+    # Write received data to files for inspection
+    - type: BinaryFileWritingDataHandler
+      file_prefix: e2sar_received
+      file_suffix: h5
+      write_directory: ./e2sar_output

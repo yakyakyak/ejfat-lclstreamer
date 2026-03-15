@@ -1,0 +1,49 @@
+# E2SAR Producer Configuration
+# This configuration demonstrates sending data via EJFAT using E2SARDataHandler
+#
+# Usage with MPI (multiple ranks for parallel sending):
+#   pixi run mpirun -n 4 lclstreamer --config examples/e2sar-producer.yaml
+#
+# Environment variables:
+#   EJFAT_URI - EJFAT URI if not specified in handler parameters
+
+source_identifier: ""
+skip_incomplete_events: false
+
+event_source:
+    type: InternalEventSource
+    number_of_events_to_generate: 100
+
+data_sources:
+    detector_data:
+        type: GenericRandomNumpyArray
+        array_shape: 512,512
+        array_dtype: float32
+    timestamp:
+        type: IntValue
+        value: 1234567890
+
+processing_pipeline:
+    type: BatchProcessingPipeline
+    batch_size: 10
+
+data_serializer:
+    type: HDF5BinarySerializer
+    compression_level: 3
+    compression: gzip
+    fields:
+        detector_data: /entry/data/image
+        timestamp: /entry/instrument/detector/timestamp
+
+data_handlers:
+    - type: E2SARDataHandler
+      # EJFAT URI - can also be set via EJFAT_URI environment variable
+      # Format: ejfat://user@host:port/lb/ID?sync=HOST:PORT&data=HOST:PORT
+      ejfat_uri: null  # Read from EJFAT_URI env var
+      data_id: null  # Auto-derive from MPI rank (0x0500 + rank)
+      eventsrc_id: null  # Auto-derive from MPI rank (0x10000000 | rank)
+      use_control_plane: true  # Enable sync packets and LB registration
+      rate_gbps: 10.0  # Rate limit (use -1.0 for unlimited)
+      mtu: 9000  # MTU for jumbo frames
+      sync_period_ms: 1000  # Sync packet interval
+      num_send_sockets: 4  # Number of send sockets for LAG
