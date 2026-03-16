@@ -94,11 +94,15 @@ class E2SAREventSource(EventSourceProtocol):
 
         # Get data address from URI
         try:
-            data_addr_str = self._ejfat_uri.get_data_addr()
-            # Parse the IP address from the data address
-            # Data address format is typically "IP:port" or just "IP"
-            data_ip = data_addr_str.split(':')[0] if ':' in data_addr_str else data_addr_str
-            self._data_ip = e2sar_py.IPAddress.from_string(data_ip)
+            data_addr_result = self._ejfat_uri.get_data_addr_v4()
+            if data_addr_result.has_error():
+                log.error(
+                    f"Failed to get data address from EJFAT URI: "
+                    f"{data_addr_result.error().message}"
+                )
+                sys.exit(1)
+            # Extract IPAddress from result (returns tuple of (IPAddress, port))
+            self._data_ip, _ = data_addr_result.value()
         except Exception as e:
             log.error(f"Failed to parse data IP from EJFAT URI: {e}")
             sys.exit(1)
