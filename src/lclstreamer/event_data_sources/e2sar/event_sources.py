@@ -47,7 +47,8 @@ class E2SAREventSource(EventSourceProtocol):
 
         This event source receives byte objects through EJFAT using the E2SAR
         Reassembler component and deserializes them into event dictionaries.
-        Each MPI rank listens on a unique port (base_port + rank).
+        Each MPI rank listens on a block of ports starting at
+        (base_port + num_recv_threads * rank).
 
         Arguments:
             parameters: The event source configuration parameters
@@ -71,8 +72,9 @@ class E2SAREventSource(EventSourceProtocol):
         self._rank = worker_rank
         self._pool_size = worker_pool_size
 
-        # Each rank listens on unique port
-        self._listen_port = parameters.listen_port + worker_rank
+        # Each rank listens on a block of ports (one per receive thread)
+        # Starting port = base + (num_threads * rank)
+        self._listen_port = parameters.listen_port + (parameters.num_recv_threads * worker_rank)
 
         # Get EJFAT URI from parameter or environment
         ejfat_uri_str = parameters.ejfat_uri

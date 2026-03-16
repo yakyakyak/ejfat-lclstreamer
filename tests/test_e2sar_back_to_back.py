@@ -6,10 +6,11 @@ This test verifies the full E2SAR integration by running a producer and consumer
 in back-to-back mode (without actual EJFAT hardware) and validating the results.
 
 Usage:
-    python tests/test_e2sar_back_to_back.py
+    python tests/test_e2sar_back_to_back.py [--num-ranks N]
     pytest tests/test_e2sar_back_to_back.py
 """
 
+import argparse
 import os
 import shutil
 import signal
@@ -23,11 +24,11 @@ import h5py
 import numpy as np
 
 # Configuration
-NUM_RANKS = 1  # Use 1 rank to avoid macOS UDP socket binding issues
+DEFAULT_NUM_RANKS = 1  # Use 1 rank by default to avoid macOS UDP socket binding issues
 CONSUMER_CONFIG = "examples/e2sar-back-to-back-consumer.yaml"
 PRODUCER_CONFIG = "examples/e2sar-back-to-back-producer.yaml"
 OUTPUT_DIR = "e2sar_b2b_output"
-EXPECTED_NUM_FILES = 10  # 50 events / 5 batch_size = 10 batches
+BATCHES_PER_RANK = 10  # 50 events / 5 batch_size = 10 batches per rank
 EXPECTED_EVENTS_PER_FILE = 5  # batch_size from producer config
 EXPECTED_ARRAY_SHAPE = (100, 100)  # From producer config
 EXPECTED_EVENT_ID = 42  # From producer config
@@ -42,10 +43,10 @@ def cleanup_output_directory():
         shutil.rmtree(OUTPUT_DIR)
 
 
-def start_consumer() -> subprocess.Popen:
+def start_consumer(num_ranks: int) -> subprocess.Popen:
     """Start the E2SAR consumer in the background"""
-    print(f"Starting consumer with {NUM_RANKS} rank(s)...")
-    cmd = ["mpirun", "-n", str(NUM_RANKS), "lclstreamer", "--config", CONSUMER_CONFIG]
+    print(f"Starting consumer with {num_ranks} rank(s)...")
+    cmd = ["mpirun", "-n", str(num_ranks), "lclstreamer", "--config", CONSUMER_CONFIG]
 
     # Start consumer process
     process = subprocess.Popen(
@@ -69,10 +70,10 @@ def start_consumer() -> subprocess.Popen:
     return process
 
 
-def run_producer() -> tuple[int, str]:
+def run_producer(num_ranks: int) -> tuple[int, str]:
     """Run the E2SAR producer and return exit code and output"""
-    print(f"Starting producer with {NUM_RANKS} rank(s)...")
-    cmd = ["mpirun", "-n", str(NUM_RANKS), "lclstreamer", "--config", PRODUCER_CONFIG]
+    print(f"Starting producer with {num_ranks} rank(s)...")
+    cmd = ["mpirun", "-n", str(num_ranks), "lclstreamer", "--config", PRODUCER_CONFIG]
 
     result = subprocess.run(
         cmd,
@@ -104,7 +105,7 @@ def stop_consumer(process: subprocess.Popen) -> str:
     return output
 
 
-def verify_output_files() -> list[Path]:
+def verify_output_files(num_ranks: int) -> list[Path]:
     """Verify that the expected output files were created"""
     print(f"\nVerifying output files in {OUTPUT_DIR}...")
 
@@ -119,12 +120,15 @@ def verify_output_files() -> list[Path]:
         file_size = f.stat().st_size / 1024  # KB
         print(f"  {f.name} ({file_size:.1f} KB)")
 
-    if len(output_files) != EXPECTED_NUM_FILES:
+    # Each rank produces BATCHES_PER_RANK files
+    expected_num_files = BATCHES_PER_RANK * num_ranks
+    if len(output_files) != expected_num_files:
         raise AssertionError(
-            f"Expected {EXPECTED_NUM_FILES} output files, found {len(output_files)}"
+            f"Expected {expected_num_files} output files ({BATCHES_PER_RANK} batches × {num_ranks} ranks), "
+            f"found {len(output_files)}"
         )
 
-    print(f"✓ Correct number of output files ({EXPECTED_NUM_FILES})")
+    print(f"✓ Correct number of output files ({expected_num_files} = {BATCHES_PER_RANK} batches × {num_ranks} ranks)")
     return output_files
 
 
@@ -207,10 +211,11 @@ def verify_all_files(output_files: list[Path]):
     print(f"  Event ID: {all_stats[0]['event_id']}")
 
 
-def run_back_to_back_test():
+def run_back_to_back_test(num_ranks: int = DEFAULT_NUM_RANKS):
     """Run the complete E2SAR back-to-back test"""
     print("=" * 70)
     print("E2SAR Back-to-Back Integration Test")
+    print(f"Running with {num_ranks} MPI rank(s)")
     print("=" * 70)
 
     consumer_process: Optional[subprocess.Popen] = None
@@ -220,10 +225,10 @@ def run_back_to_back_test():
         cleanup_output_directory()
 
         # Step 2: Start consumer
-        consumer_process = start_consumer()
+        consumer_process = start_consumer(num_ranks)
 
         # Step 3: Run producer
-        producer_exit_code, producer_output = run_producer()
+        producer_exit_code, producer_output = run_producer(num_ranks)
 
         if producer_exit_code != 0:
             print("\nProducer output:")
@@ -235,12 +240,12 @@ def run_back_to_back_test():
         consumer_process = None  # Mark as cleaned up
 
         # Step 5: Verify outputs
-        output_files = verify_output_files()
+        output_files = verify_output_files(num_ranks)
         verify_all_files(output_files)
 
         # Success!
         print("\n" + "=" * 70)
-        print("✓ E2SAR Back-to-Back Test PASSED")
+        print(f"✓ E2SAR Back-to-Back Test PASSED ({num_ranks} rank(s))")
         print("=" * 70)
 
         return True
@@ -275,13 +280,42 @@ def test_e2sar_back_to_back():
         import pytest
         pytest.skip(f"E2SAR dependencies not available: {e}")
 
-    # Run the test
-    run_back_to_back_test()
+    # Run the test with default number of ranks
+    run_back_to_back_test(DEFAULT_NUM_RANKS)
+
+
+def parse_args():
+    """Parse command-line arguments"""
+    parser = argparse.ArgumentParser(
+        description="E2SAR Back-to-Back Integration Test",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Run with 1 rank (default, safer on macOS):
+  python tests/test_e2sar_back_to_back.py
+
+  # Run with 2 ranks (may have UDP issues on macOS):
+  python tests/test_e2sar_back_to_back.py --num-ranks 2
+
+  # Run with 4 ranks:
+  python tests/test_e2sar_back_to_back.py --num-ranks 4
+        """
+    )
+    parser.add_argument(
+        '--num-ranks', '-n',
+        type=int,
+        default=DEFAULT_NUM_RANKS,
+        metavar='N',
+        help=f'Number of MPI ranks to use (default: {DEFAULT_NUM_RANKS})'
+    )
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
+    args = parse_args()
+
     try:
-        success = run_back_to_back_test()
+        success = run_back_to_back_test(args.num_ranks)
         sys.exit(0 if success else 1)
     except KeyboardInterrupt:
         print("\n\nTest interrupted by user")

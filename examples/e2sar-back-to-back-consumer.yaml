@@ -12,8 +12,8 @@ event_source:
     type: E2SAREventSource
     # Back-to-back URI: data address matches producer's data parameter
     ejfat_uri: "ejfat://test@127.0.0.1:9876/lb/1?sync=127.0.0.1:12345&data=127.0.0.1"
-    listen_port: 10000  # Must match producer's data port
-    num_recv_threads: 2
+    listen_port: 10000  # Base port (rank N uses ports base + 2*N through base + 2*N+1)
+    num_recv_threads: 2  # Each rank consumes 2 ports
     use_control_plane: false  # No actual LB in back-to-back mode
     with_lb_header: true  # IMPORTANT: Must be true for back-to-back
     event_timeout_ms: 2000  # Longer timeout for testing

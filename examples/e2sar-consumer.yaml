@@ -15,8 +15,8 @@ event_source:
     # EJFAT URI - can also be set via EJFAT_URI environment variable
     # Format: ejfat://user@host:port/lb/ID?sync=HOST:PORT&data=HOST
     ejfat_uri: null  # Read from EJFAT_URI env var
-    listen_port: 10000  # Base port (rank N uses port 10000+N)
-    num_recv_threads: 4  # Receive threads per rank
+    listen_port: 10000  # Base port (rank N uses ports base + num_threads*N through base + num_threads*(N+1)-1)
+    num_recv_threads: 4  # Receive threads per rank (each rank consumes this many ports)
     use_control_plane: true  # Register with load balancer
     with_lb_header: false  # Set true for back-to-back testing
     event_timeout_ms: 500  # Reassembly timeout
