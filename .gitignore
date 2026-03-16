@@ -4,3 +4,6 @@
 *.egg-info
 __pycache__
 docs/build/
+
+# E2SAR test output
+e2sar_b2b_output/
