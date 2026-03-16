@@ -53,3 +53,11 @@ usage
 configuration
 advanced
 ```
+
+```{toctree}
+:maxdepth: 2
+:caption: EJFAT/E2SAR Integration
+
+e2sar_integration
+e2sar_testing
+```
