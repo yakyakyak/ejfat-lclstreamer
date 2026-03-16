@@ -1,0 +1,48 @@
+E2SAR Back-to-Back Test Summary
+================================
+
+Created: tests/test_e2sar_back_to_back.py
+Documentation: tests/README_E2SAR_TESTS.md
+
+TEST COVERAGE:
+--------------
+✓ E2SAR Segmenter initialization and configuration
+✓ E2SAR Reassembler initialization and configuration
+✓ Data serialization (HDF5BinarySerializer)
+✓ Data transmission via EJFAT URI (localhost back-to-back)
+✓ Data reception and deserialization
+✓ File output and validation
+✓ MPI rank coordination
+✓ Batch processing pipeline
+
+VERIFICATION CHECKS:
+--------------------
+✓ Correct number of output files (10 batches)
+✓ File sizes are consistent (~204 KB each)
+✓ Array shape: (1, 5, 100, 100) - [rank, batch, height, width]
+✓ Array dtype: float32
+✓ Array value range: [0.0, 1.0] (random data)
+✓ Event IDs: all equal to 42
+✓ HDF5 structure: /data/array and /data/event_id
+
+USAGE:
+------
+Standalone:  python tests/test_e2sar_back_to_back.py
+With pytest: pytest tests/test_e2sar_back_to_back.py -v
+All tests:   pytest tests/
+
+CONFIGURATION:
+--------------
+Uses existing example configs:
+- examples/e2sar-back-to-back-producer.yaml
+- examples/e2sar-back-to-back-consumer.yaml
+
+Output directory: e2sar_b2b_output/
+Number of MPI ranks: 1 (due to macOS UDP socket limitations)
+
+RECENT TEST RUN:
+----------------
+Status: PASSED ✓
+Duration: ~5.5 seconds
+Files created: 10
+Total data transferred: ~2 MB
